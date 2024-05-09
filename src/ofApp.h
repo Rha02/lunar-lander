@@ -79,4 +79,7 @@ public:
 	// Particles
 	ParticleEmitter* emitter;
 	ParticleSystem* particleSys;
+
+	// LEM fuel
+	float fuel = 120;
 };

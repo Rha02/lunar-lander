@@ -119,12 +119,16 @@ void ofApp::update(){
 	gravityForce->update(lander);
 	lander->integrate();
 
+	// Reduce fuel if thrusters are being used
+	float thrustMagnitude = thrustForce->getThrust().length();
+	float tanMagnitude = tanForce->getTorque().length();
+	if (thrustMagnitude != 0 || tanMagnitude != 0) {
+		float dt = 1.0f / ofGetFrameRate();
+		fuel -= dt;
+	}
+
 	emitter->position = lander->getPosition();
 	emitter->update();
-
-	// Reset thrust-force in case user stopped pressing a movement key
-	thrustForce->setThrust(ofVec3f(0, 0, 0));
-	tanForce->setTorque(ofVec3f(0, 0, 0));
 
 	// Stop emitter in case user stopped pressing a movement key
 	emitter->stop();
@@ -193,6 +197,9 @@ void ofApp::draw(){
 		ofSetColor(ofColor::white);
 		ofDrawBitmapString("Altitude (AGL): " + std::to_string(computeAGL()), 5, 15);
 	}
+
+	ofSetColor(ofColor::white);
+	ofDrawBitmapString("Fuel left: " + std::to_string(fuel), ofGetWindowWidth() - 170, 30);
 
 	ofDisableDepthTest();
 }
@@ -289,8 +296,11 @@ void ofApp::keyPressed(int key){
 
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
-	switch (key) {
+	// Reset thrust-force in case user stopped pressing a movement key
+	thrustForce->setThrust(ofVec3f(0, 0, 0));
+	tanForce->setTorque(ofVec3f(0, 0, 0));
 
+	switch (key) {
 	case OF_KEY_ALT:
 		cam.disableMouseInput();
 		bAltKeyDown = false;
