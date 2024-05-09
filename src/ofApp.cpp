@@ -1,5 +1,33 @@
 #include "ofApp.h"
 
+/* Helpers */
+
+/* Finds the altitude of the lander(distance between the landerand the terrain)
+ * by using ray-based collision detection with the terrain. */
+float ofApp::computeAGL() {
+	ofVec3f pos = lander->getPosition();
+	ofVec3f rayDirection = ofVec3f(0, -1, 0);
+
+	// Create ray from lander towards terrain
+	Ray ray = Ray(
+		Vector3(pos.x, pos.y, pos.z), 
+		Vector3(rayDirection.x, rayDirection.y, rayDirection.z)
+	);
+
+	// Detect which node the ray collides with
+	TreeNode node;
+	bool nodeFound = octree.intersect(ray, octree.root, node);
+
+	if (nodeFound) {
+		// Compute distance between lander position and point on terrain
+		ofVec3f nodePos = octree.mesh.getVertex(node.points[0]);
+
+		return pos.y - nodePos.y;
+	}
+
+	return 0;
+}
+
 //--------------------------------------------------------------
 void ofApp::setup(){
 	bWireframe = false;
@@ -37,6 +65,9 @@ void ofApp::setup(){
 		cout << "Error: Can't load model" << "geo/moon-houdini.obj" << endl;
 		ofExit(0);
 	}
+
+	// Create Octree
+	octree.create(terrain.getMesh(0), 20);
 
 	lander = new LunarLander();
 
@@ -85,7 +116,7 @@ void ofApp::update(){
 	thrustForce->update(lander);
 	tanForce->update(lander);
 	turbForce->update(lander);
-	//gravityForce->update(lander);
+	gravityForce->update(lander);
 	lander->integrate();
 
 	emitter->position = lander->getPosition();
@@ -97,6 +128,8 @@ void ofApp::update(){
 
 	// Stop emitter in case user stopped pressing a movement key
 	emitter->stop();
+
+	// TODO: lander collision with octree
 }
 
 //--------------------------------------------------------------
@@ -122,23 +155,23 @@ void ofApp::draw(){
 	// apply forces
 
 
-	if (bWireframe) {                    // wireframe mode  (include axis)
+	if (bWireframe) {
+		// wireframe mode  (include axis)
 		ofDisableLighting();
 		ofSetColor(ofColor::slateGray);
 		terrain.drawWireframe();
-		if (bLanderLoaded) { 
-			lander->model.drawWireframe();
-		}
+		
+		lander->model.drawWireframe();
 	}
 	else {
-		ofEnableLighting();              // shaded mode
+		// shaded mode
+		ofEnableLighting();
 		terrain.drawFaces();
-		if (bLanderLoaded) {
-			lander->model.drawFaces();
-		}
+		lander->model.drawFaces();
 	}
 
-	if (bDisplayPoints) {                // display points as an option    
+	if (bDisplayPoints) {                
+		// display points as an option    
 		glPointSize(3);
 		ofSetColor(ofColor::green);
 	}
@@ -151,16 +184,15 @@ void ofApp::draw(){
 	theCam->end();
 
 	// draw screen data
-	// TODO
 	string str;
 	str += "Frame Rate: " + std::to_string(ofGetFrameRate());
 	ofSetColor(ofColor::white);
 	ofDrawBitmapString(str, ofGetWindowWidth() - 170, 15);
 
-	string str2;
-	str2 += "Altitide (AGL): " + std::to_string(lander->model.getPosition().y);
-	ofSetColor(ofColor::white);
-	ofDrawBitmapString(str2, 5, 15);
+	if (showAGL) {
+		ofSetColor(ofColor::white);
+		ofDrawBitmapString("Altitude (AGL): " + std::to_string(computeAGL()), 5, 15);
+	}
 
 	ofDisableDepthTest();
 }
@@ -170,6 +202,13 @@ void ofApp::keyPressed(int key){
 	if (key == 'a' || key == 'd' || key == 's' || key == 'w' || key == OF_KEY_UP ||
 		key == OF_KEY_DOWN || key == OF_KEY_LEFT || key == OF_KEY_RIGHT) {
 		emitter->start();
+
+		if (key == 'a') {
+			tanForce->setTorque(ofVec3f(0, -torqueMagnitude, 0));
+		}
+		else if (key == 'd') {
+			tanForce->setTorque(ofVec3f(0, torqueMagnitude, 0));
+		}
 	}
 
 	switch (key) {
@@ -184,6 +223,8 @@ void ofApp::keyPressed(int key){
 		break;
 	case 'H':
 	case 'h':
+		// Toggle displaying AGL.
+		showAGL = !showAGL;
 		break;
 	case 'P':
 	case 'p':
@@ -205,12 +246,6 @@ void ofApp::keyPressed(int key){
 		break;
 	case 'm':
 		toggleWireframeMode();
-		break;
-	case 'd':     // rotate spacecraft clockwise (about Y (UP) axis)
-		tanForce->setTorque(ofVec3f(0, torqueMagnitude, 0));
-		break;
-	case 'a':     // rotate spacecraft counter-clockwise (about Y (UP) axis)
-		tanForce->setTorque(ofVec3f(0, -torqueMagnitude, 0));
 		break;
 	case 'w':     // spacecraft thrust UP
 		thrustForce->setThrust(ofVec3f(0, thrustMagnitude, 0));
