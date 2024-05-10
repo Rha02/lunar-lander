@@ -28,6 +28,26 @@ float ofApp::computeAGL() {
 	return 0;
 }
 
+// Load vertex buffer in preparation for rendering
+void ofApp::loadVbo() {
+	if (emitter->sys->particles.size() < 1) {
+		return;
+	}
+
+	vector<ofVec3f> sizes;
+	vector<ofVec3f> points;
+	for (int i = 0; i < emitter->sys->particles.size(); i++) {
+		points.push_back(emitter->sys->particles[i].position);
+		sizes.push_back(ofVec3f(emitter->particleRadius));
+	}
+
+	// Upload data to the vbo
+	int total = (int)points.size();
+	vbo.clear();
+	vbo.setVertexData(&points[0], total, GL_STATIC_DRAW);
+	vbo.setNormalData(&sizes[0], total, GL_STATIC_DRAW);
+}
+
 //--------------------------------------------------------------
 void ofApp::setup(){
 	bWireframe = false;
@@ -58,13 +78,38 @@ void ofApp::setup(){
 	// Set up basic lighting
 	initLightingAndMaterials();
 
+	// Load terrain
 	if (terrain.loadModel("geo/moon-houdini.obj")) {
 		terrain.setScaleNormalization(false);
 	}
 	else {
-		cout << "Error: Can't load model" << "geo/moon-houdini.obj" << endl;
+		cout << "Error: Can't load model: geo/moon-houdini.obj" << endl;
 		ofExit(0);
 	}
+
+	// Particle shaders & texture
+
+	// Load particle textures and shaders
+	//if (!ofLoadImage(particleTexture, "images/dot.png")) {
+	//	cout << "Error: Can't load texture file: images/dot.png not found" << endl;
+	//	ofExit(0);
+	//}
+
+	//ofDisableArbTex();
+
+//#ifdef TARGET_OPENGLES
+//	cout << "pass 2" << endl;
+//	if (!shader.load("shaders_gles/shader")) {
+//		cout << "Error: Can't load shader file: shaders_gles/shader not found" << endl;
+//		ofExit(0);
+//	}
+//#else
+//	cout << "pass 3" << endl;
+//	if (!shader.load("shaders/shader.vert", "shaders/shader.frag")) {
+//		cout << "Error: Can't load shader file: shaders/shader not found" << endl;
+//		ofExit(0);
+//	}
+//#endif
 
 	// Create Octree
 	octree.create(terrain.getMesh(0), 20);
@@ -112,6 +157,62 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
+	// Apply updates to forces depending on which keys are pressed
+
+	// Apply rotational forces
+	tanForce->setTorque(ofVec3f(0, 0, 0));
+	if (keymap['a']) {
+		tanForce->setTorque(
+			tanForce->getTorque() + ofVec3f(0, -torqueMagnitude, 0)
+		);
+		emitter->start();
+	}
+	if (keymap['d']) {
+		tanForce->setTorque(
+			tanForce->getTorque() + ofVec3f(0, torqueMagnitude, 0)
+		);
+		emitter->start();
+	}
+
+	// Apply directional (thruster) forces
+	thrustForce->setThrust(ofVec3f(0, 0, 0));
+	if (keymap['w']) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + ofVec3f(0, thrustMagnitude, 0)
+		);
+		emitter->start();
+	}
+	if (keymap['s']) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + ofVec3f(0, -thrustMagnitude, 0)
+		);
+		emitter->start();
+	}
+	if (keymap[OF_KEY_UP]) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + (thrustMagnitude * lander->getForwardUV())
+		);
+		emitter->start();
+	}
+	if (keymap[OF_KEY_DOWN]) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + (thrustMagnitude * lander->getBackwardUV())
+		);
+		emitter->start();
+	}
+	if (keymap[OF_KEY_LEFT]) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + (thrustMagnitude * lander->getLeftUV())
+		);
+		emitter->start();
+	}
+	if (keymap[OF_KEY_RIGHT]) {
+		thrustForce->setThrust(
+			thrustForce->getThrust() + (thrustMagnitude * lander->getRightUV())
+		);
+		emitter->start();
+	}
+
 	// Apply forces on the lander
 	thrustForce->update(lander);
 	tanForce->update(lander);
@@ -130,10 +231,35 @@ void ofApp::update(){
 	emitter->position = lander->getPosition();
 	emitter->update();
 
-	// Stop emitter in case user stopped pressing a movement key
-	emitter->stop();
+	// Compute lander bounds
+	ofVec3f min = lander->model.getSceneMin() + lander->getPosition();
+	ofVec3f max = lander->model.getSceneMax() + lander->getPosition();
+	Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
 
-	// TODO: lander collision with octree
+	// Update collision boxes
+	colBoxList.clear();
+	octree.intersect(bounds, octree.root, colBoxList);
+
+	// Handle lander collision with the terrain
+	if (colBoxList.size() >= 5) {
+		// Apply impulse to the lander upon collision
+		ofVec3f yNormal = ofVec3f(0, 1, 0);
+		lander->velocity = (yNormal.dot(-lander->velocity) * yNormal) * 1.25;
+
+		// Check if lander is on the lander area
+
+		cout << lander->velocity.length() << endl;
+		// Explode if lander is too fast
+		if (lander->velocity.length() >= 2.0f) {
+			cout << "explode" << endl;
+		}
+
+		// Check if lander successfully landed
+		if (lander->velocity.length() < 1.0f) {
+			cout << "successful landing" << endl;
+		}
+	}
+	
 }
 
 //--------------------------------------------------------------
@@ -151,6 +277,8 @@ void ofApp::draw(){
 		ofEnableDepthTest();
 		ofPopMatrix();
 	}
+
+	//loadVbo();
 
 	theCam->begin();
 
@@ -180,8 +308,29 @@ void ofApp::draw(){
 		ofSetColor(ofColor::green);
 	}
 
+	// draw shaders
+	
+
+	/*particleTexture.bind();
+	vbo.draw(GL_POINTS, 0, (int)emitter->sys->particles.size());
+	particleTexture.unbind();*/
+
 	// Draw Particle emitter
 	emitter->draw();
+
+	// Draw lander and collision boxes
+	ofNoFill();
+	ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
+	ofVec3f max = lander->model.getSceneMax() * 0.5 + lander->getPosition();
+	Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+	ofSetColor(ofColor::white);
+	Octree::drawBox(bounds);
+
+	ofSetColor(ofColor::lightBlue);
+	for (int i = 0; i < colBoxList.size(); i++) {
+		Octree::drawBox(colBoxList[i]);
+	}
+	
 
 	ofPopMatrix();
 
@@ -206,17 +355,7 @@ void ofApp::draw(){
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-	if (key == 'a' || key == 'd' || key == 's' || key == 'w' || key == OF_KEY_UP ||
-		key == OF_KEY_DOWN || key == OF_KEY_LEFT || key == OF_KEY_RIGHT) {
-		emitter->start();
-
-		if (key == 'a') {
-			tanForce->setTorque(ofVec3f(0, -torqueMagnitude, 0));
-		}
-		else if (key == 'd') {
-			tanForce->setTorque(ofVec3f(0, torqueMagnitude, 0));
-		}
-	}
+	keymap[key] = true;
 
 	switch (key) {
 	case 'C':
@@ -254,12 +393,6 @@ void ofApp::keyPressed(int key){
 	case 'm':
 		toggleWireframeMode();
 		break;
-	case 'w':     // spacecraft thrust UP
-		thrustForce->setThrust(ofVec3f(0, thrustMagnitude, 0));
-		break;
-	case 's':     // spacefraft thrust DOWN
-		thrustForce->setThrust(ofVec3f(0, -thrustMagnitude, 0));
-		break;
 	case OF_KEY_F1:
 		theCam = &cam;
 		break;
@@ -277,18 +410,6 @@ void ofApp::keyPressed(int key){
 		break;
 	case OF_KEY_DEL:
 		break;
-	case OF_KEY_UP:    // move forward
-		thrustForce->setThrust(thrustMagnitude * lander->getForwardUV());
-		break;
-	case OF_KEY_DOWN:   // move backward
-		thrustForce->setThrust(thrustMagnitude * lander->getBackwardUV());
-		break;
-	case OF_KEY_LEFT:   // move left
-		thrustForce->setThrust(thrustMagnitude * lander->getLeftUV());
-		break;
-	case OF_KEY_RIGHT:   // move right
-		thrustForce->setThrust(thrustMagnitude * lander->getRightUV());
-		break;
 	default:
 		break;
 	}
@@ -297,8 +418,10 @@ void ofApp::keyPressed(int key){
 //--------------------------------------------------------------
 void ofApp::keyReleased(int key){
 	// Reset thrust-force in case user stopped pressing a movement key
-	thrustForce->setThrust(ofVec3f(0, 0, 0));
-	tanForce->setTorque(ofVec3f(0, 0, 0));
+	keymap[key] = false;
+
+	// Stop emitter in case user stopped pressing a movement key
+	emitter->stop();
 
 	switch (key) {
 	case OF_KEY_ALT:

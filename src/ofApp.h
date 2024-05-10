@@ -17,6 +17,8 @@ private:
 	TreeNode selectedNode;
 	Box boundingBox, landerBounds;
 
+	vector<Box> colBoxList;
+
 public:
 	void setup();
 	void update();
@@ -82,4 +84,12 @@ public:
 
 	// LEM fuel
 	float fuel = 120;
+
+	// Particle System Shades
+	ofTexture particleTexture;
+	ofVbo vbo;
+	ofShader shader;
+	void loadVbo();
+
+	map<int, bool> keymap;
 };
