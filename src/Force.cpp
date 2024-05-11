@@ -65,3 +65,18 @@ void GravityForce::update(PhysicsObject* obj) {
 
 	obj->forces += ofVec3f(0, gForce, 0);
 }
+
+ImpulseRadialForce::ImpulseRadialForce(float magnitude) {
+	this->magnitude = magnitude;
+}
+
+void ImpulseRadialForce::setMagnitude(float magnitude) {
+	this->magnitude = magnitude;
+}
+
+void ImpulseRadialForce::update(PhysicsObject* obj) {
+	ofVec3f dir = ofVec3f(
+		ofRandom(-1, 1), ofRandom(-1, 1), ofRandom(-1, 1)
+	);
+	obj->forces += dir.normalize() * (magnitude * ofRandom(0.8f, 1.0f));
+}

@@ -30,6 +30,11 @@ void ParticleEmitter::update() {
 		}
 
 		lastSpawned = time;
+
+		if (oneShot) {
+			active = false;
+			stop();
+		}
 	}
 
 	sys->update();
@@ -46,6 +51,13 @@ void ParticleEmitter::spawnParticle(float time) {
 		);
 		p.position.set(pos);
 		p.velocity = particleVelocity;
+	}
+	else if (type == RadialEmitter) {
+		ofVec3f dir = ofVec3f(
+			ofRandom(-1, 1), ofRandom(-1, 1), ofRandom(-1, 1)
+		);
+		p.velocity = dir.normalize() * particleVelocity.length();
+		p.position.set(position);
 	}
 	else {
 		p.velocity = particleVelocity;

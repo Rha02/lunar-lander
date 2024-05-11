@@ -74,13 +74,19 @@ public:
 	GravityForce* gravityForce;
 	float gravity = 0.164f;
 
-	// Particle force
+	// Particle forces
 	ThrustForce* particleForce;
 	float particleThrust = 20.0f;
+
+	ImpulseRadialForce* explosionForce;
+	float explosionMagnitude = 400.0f;
 
 	// Particles
 	ParticleEmitter* emitter;
 	ParticleSystem* particleSys;
+
+	ParticleEmitter* explosionEmitter;
+	ParticleSystem* explosionParticleSys;
 
 	// LEM fuel
 	float fuel = 120;

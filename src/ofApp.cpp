@@ -121,7 +121,7 @@ void ofApp::setup(){
 		lander->model.setScaleNormalization(false);
 		lander->model.setScale(.5, .5, .5);
 		lander->model.setRotation(0, 0, 1, 0, 0);
-		lander->model.setPosition(0, 0, 0);
+		lander->model.setPosition(0, 25.0f, 0);
 
 		bLanderLoaded = true;
 	}
@@ -146,13 +146,29 @@ void ofApp::setup(){
 
 	emitter->sys->addForce(particleForce);
 	emitter->sys->addForce(turbForce);
-	emitter->active = true;
+	emitter->sys->addForce(gravityForce);
 	emitter->radius = 0.2f;
-	emitter->rate = 20.0f;
+	emitter->rate = 25.0f;
 	emitter->particleRadius = 0.02f;
 	emitter->lifespan = 0.5f;
-	emitter->groupSize = 20;
-	emitter->particleVelocity = ofVec3f(0, -0.5f, 0);
+	emitter->groupSize = 30;
+	emitter->particleVelocity = ofVec3f(0, -0.8f, 0);
+
+	// Set up explosion particle system
+	explosionForce = new ImpulseRadialForce(explosionMagnitude);
+	explosionForce->applyOnce = true;
+
+	explosionParticleSys = new ParticleSystem();
+	explosionEmitter = new ParticleEmitter(explosionParticleSys);
+
+	explosionEmitter->sys->addForce(explosionForce);
+
+	explosionEmitter->type = RadialEmitter;
+	explosionEmitter->particleRadius = 0.02f;
+	explosionEmitter->lifespan = 2.0f;
+	explosionEmitter->groupSize = 800;
+	explosionEmitter->particleVelocity = ofVec3f(0, 0, 0);
+	explosionEmitter->oneShot = true;
 }
 
 //--------------------------------------------------------------
@@ -231,6 +247,8 @@ void ofApp::update(){
 	emitter->position = lander->getPosition();
 	emitter->update();
 
+	explosionEmitter->update();
+
 	// Compute lander bounds
 	ofVec3f min = lander->model.getSceneMin() + lander->getPosition();
 	ofVec3f max = lander->model.getSceneMax() + lander->getPosition();
@@ -252,6 +270,9 @@ void ofApp::update(){
 		// Explode if lander is too fast
 		if (lander->velocity.length() >= 2.0f) {
 			cout << "explode" << endl;
+			explosionForce->applied = false;
+			explosionEmitter->position = lander->getPosition();
+			explosionEmitter->start();
 		}
 
 		// Check if lander successfully landed
@@ -317,6 +338,7 @@ void ofApp::draw(){
 
 	// Draw Particle emitter
 	emitter->draw();
+	explosionEmitter->draw();
 
 	// Draw lander and collision boxes
 	ofNoFill();
@@ -560,7 +582,10 @@ void ofApp::exit() {
 	free(tanForce);
 	free(particleForce);
 	free(turbForce);
+	free(gravityForce);
 	free(emitter);
 	free(particleSys);
+	free(explosionEmitter);
+	free(explosionParticleSys);
 	free(lander);
 }

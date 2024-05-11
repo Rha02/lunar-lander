@@ -2,7 +2,7 @@
 
 #include "ParticleSystem.h"
 
-typedef enum { DiskEmitter } EmitterType;
+typedef enum { DiskEmitter, RadialEmitter } EmitterType;
 
 class ParticleEmitter {
 private:
@@ -23,6 +23,8 @@ public:
 	int groupSize = 20;
 	bool active = false;
 	int lastSpawned = 0;
+	bool oneShot = false;
+	bool fired = false;
 
 	void start();
 	void stop();

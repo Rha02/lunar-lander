@@ -5,6 +5,8 @@
 class Force {
 public:
 	virtual void update(PhysicsObject*) = 0;
+	bool applyOnce = false;
+	bool applied = false;
 };
 
 // ThrustForce is a force used for linear motion
@@ -44,5 +46,15 @@ private:
 public:
 	GravityForce(float gravity);
 	void setGravity(float gravity);
+	void update(PhysicsObject*);
+};
+
+class ImpulseRadialForce : public Force {
+private:
+	float magnitude;
+
+public:
+	ImpulseRadialForce(float magnitude);
+	void setMagnitude(float magnitude);
 	void update(PhysicsObject*);
 };

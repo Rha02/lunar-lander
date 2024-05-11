@@ -1,13 +1,5 @@
 #include "ParticleSystem.h"
 
-void add(const Particle&);
-void addForce(Force*);
-void remove(int);
-void update();
-void setLifespan(float);
-void reset();
-void draw();
-
 // add a particle to the system
 void ParticleSystem::add(const Particle& p) {
 	particles.push_back(p);
@@ -45,7 +37,15 @@ void ParticleSystem::update() {
 	// apply forces on each particle
 	for (int i = 0; i < particles.size(); i++) {
 		for (int j = 0; j < forces.size(); j++) {
-			forces[j]->update(&particles[i]);
+			if (!forces[j]->applied) {
+				forces[j]->update(&particles[i]);
+			}
+		}
+	}
+
+	for (int i = 0; i < forces.size(); i++) {
+		if (forces[i]->applyOnce) {
+			forces[i]->applied = true;
 		}
 	}
 
