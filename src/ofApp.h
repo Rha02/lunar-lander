@@ -8,6 +8,10 @@
 #include "Util.h"
 #include <glm/gtx/intersect.hpp>
 
+enum GameState {
+	PREGAME, INGAME, ENDGAME
+};
+
 class ofApp : public ofBaseApp{
 private:
 	float computeAGL();
@@ -17,8 +21,13 @@ private:
 	TreeNode selectedNode;
 	Box boundingBox, landerBounds;
 
+	bool bLanderSelected = false;
+	glm::vec3 mouseDownPos, mouseLastPos;
+	bool bInDrag = false;
+
 	vector<Box> colBoxList;
 
+	void setupLander();
 public:
 	void setup();
 	void update();
@@ -42,6 +51,8 @@ public:
 	void savePicture();
 	void toggleWireframeMode();
 	void togglePointsDisplay();
+
+	glm::vec3 getMousePointOnPlane(glm::vec3 p, glm::vec3 n);
 		
 	ofEasyCam cam;
 	LunarLander* lander;
@@ -57,29 +68,31 @@ public:
 	bool bDisplayPoints;
 
 	bool bBackgroundLoaded = false;
-	bool bLanderLoaded = false;
+
+	GameState gamestate = PREGAME;
+	ofTrueTypeFont textDisplay;
 
 	// Thrust force
 	ThrustForce* thrustForce;
-	float thrustMagnitude = 200.0f;
+	float thrustMagnitude = 150.0f;
 
 	// Tangential force
 	TangentialForce* tanForce;
-	float torqueMagnitude = 10000.0f;
+	float torqueMagnitude = 8000.0f;
 
 	// Turbulence force
 	TurbulenceForce* turbForce;
 
 	// Gravity force
 	GravityForce* gravityForce;
-	float gravity = 0.164f;
+	float gravity = 1.64f;
 
 	// Particle forces
 	ThrustForce* particleForce;
 	float particleThrust = 20.0f;
 
 	ImpulseRadialForce* explosionForce;
-	float explosionMagnitude = 400.0f;
+	float explosionMagnitude = 600.0f;
 
 	// Particles
 	ParticleEmitter* emitter;
@@ -90,6 +103,8 @@ public:
 
 	// LEM fuel
 	float fuel = 120;
+
+	int score = 0;
 
 	// Particle System Shades
 	ofTexture particleTexture;

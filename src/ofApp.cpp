@@ -1,6 +1,43 @@
 #include "ofApp.h"
 
 /* Helpers */
+glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
+	glm::vec3 origin = cam.getPosition();
+	glm::vec3 camAxis = cam.getZAxis();
+	glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
+	float distance;
+
+	bool hit = glm::intersectRayPlane(origin, mouseDir, planePt, planeNorm, distance);
+
+	if (hit) {
+		// find the point of intersection on the plane using the distance 
+		// We use the parameteric line or vector representation of a line to compute
+		//
+		// p' = p + s * dir;
+		//
+		glm::vec3 intersectPoint = origin + distance * mouseDir;
+
+		return intersectPoint;
+	}
+	else return glm::vec3(0, 0, 0);
+}
+
+void ofApp::setupLander() {
+	lander = new LunarLander();
+
+	// load lander model
+	if (lander->model.loadModel("geo/lander.obj")) {
+		lander->model.setScaleNormalization(false);
+		lander->model.setScale(.5, .5, .5);
+		lander->model.setRotation(0, 0, 1, 0, 0);
+		lander->setPosition(ofVec3f(0, 15.0f, 0));
+	}
+	else {
+		cout << "Error: Can't load model" << "geo/lander.obj" << endl;
+		ofExit(0);
+	}
+}
 
 /* Finds the altitude of the lander(distance between the landerand the terrain)
  * by using ray-based collision detection with the terrain. */
@@ -54,7 +91,6 @@ void ofApp::setup(){
 	bDisplayPoints = false;
 	bAltKeyDown = false;
 	bCtrlKeyDown = false;
-	bLanderLoaded = false;
 
 	// Set up cameras
 	cam.setDistance(10);
@@ -74,6 +110,9 @@ void ofApp::setup(){
 	ofEnableDepthTest();
 
 	bBackgroundLoaded = backgroundImage.load("images/starfield-plain.jpg");
+
+	// Load custom font
+	textDisplay.load("fonts/LucidaConsole.ttf", 16);
 
 	// Set up basic lighting
 	initLightingAndMaterials();
@@ -114,21 +153,7 @@ void ofApp::setup(){
 	// Create Octree
 	octree.create(terrain.getMesh(0), 20);
 
-	lander = new LunarLander();
-
-	// load lander model
-	if (lander->model.loadModel("geo/lander.obj")) {
-		lander->model.setScaleNormalization(false);
-		lander->model.setScale(.5, .5, .5);
-		lander->model.setRotation(0, 0, 1, 0, 0);
-		lander->model.setPosition(0, 25.0f, 0);
-
-		bLanderLoaded = true;
-	}
-	else {
-		cout << "Error: Can't load model" << "geo/lander.obj" << endl;
-		ofExit(0);
-	}
+	setupLander();
 
 	// Set up forces
 	thrustForce = new ThrustForce(ofVec3f(0, 0, 0));
@@ -165,7 +190,7 @@ void ofApp::setup(){
 
 	explosionEmitter->type = RadialEmitter;
 	explosionEmitter->particleRadius = 0.02f;
-	explosionEmitter->lifespan = 2.0f;
+	explosionEmitter->lifespan = 4.0f;
 	explosionEmitter->groupSize = 800;
 	explosionEmitter->particleVelocity = ofVec3f(0, 0, 0);
 	explosionEmitter->oneShot = true;
@@ -173,8 +198,6 @@ void ofApp::setup(){
 
 //--------------------------------------------------------------
 void ofApp::update(){
-	// Apply updates to forces depending on which keys are pressed
-
 	// Apply rotational forces
 	tanForce->setTorque(ofVec3f(0, 0, 0));
 	if (keymap['a']) {
@@ -230,18 +253,30 @@ void ofApp::update(){
 	}
 
 	// Apply forces on the lander
-	thrustForce->update(lander);
-	tanForce->update(lander);
-	turbForce->update(lander);
-	gravityForce->update(lander);
-	lander->integrate();
+	if (gamestate == INGAME) {
+		thrustForce->update(lander);
+		tanForce->update(lander);
 
-	// Reduce fuel if thrusters are being used
-	float thrustMagnitude = thrustForce->getThrust().length();
-	float tanMagnitude = tanForce->getTorque().length();
-	if (thrustMagnitude != 0 || tanMagnitude != 0) {
-		float dt = 1.0f / ofGetFrameRate();
-		fuel -= dt;
+		if (fuel <= 0) {
+			gamestate == ENDGAME;
+		}
+		else {
+			// Reduce fuel if thrusters are being used
+			float thrustMagnitude = thrustForce->getThrust().length();
+			float tanMagnitude = tanForce->getTorque().length();
+			if (thrustMagnitude != 0 || tanMagnitude != 0) {
+				float dt = 1.0f / ofGetFrameRate();
+				fuel -= dt;
+			}
+		}
+	}
+	else {
+		emitter->stop();
+	}
+	if (gamestate != PREGAME) {
+		turbForce->update(lander);
+		gravityForce->update(lander);
+		lander->integrate();
 	}
 
 	emitter->position = lander->getPosition();
@@ -259,20 +294,21 @@ void ofApp::update(){
 	octree.intersect(bounds, octree.root, colBoxList);
 
 	// Handle lander collision with the terrain
-	if (colBoxList.size() >= 5) {
+	if (gamestate == INGAME && colBoxList.size() >= 5) {
 		// Apply impulse to the lander upon collision
 		ofVec3f yNormal = ofVec3f(0, 1, 0);
 		lander->velocity = (yNormal.dot(-lander->velocity) * yNormal) * 1.25;
 
 		// Check if lander is on the lander area
 
-		cout << lander->velocity.length() << endl;
 		// Explode if lander is too fast
 		if (lander->velocity.length() >= 2.0f) {
 			cout << "explode" << endl;
 			explosionForce->applied = false;
 			explosionEmitter->position = lander->getPosition();
 			explosionEmitter->start();
+
+			gamestate = ENDGAME;
 		}
 
 		// Check if lander successfully landed
@@ -342,11 +378,18 @@ void ofApp::draw(){
 
 	// Draw lander and collision boxes
 	ofNoFill();
-	ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
-	ofVec3f max = lander->model.getSceneMax() * 0.5 + lander->getPosition();
-	Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
-	ofSetColor(ofColor::white);
-	Octree::drawBox(bounds);
+
+	if (gamestate == PREGAME) {
+		ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
+		ofVec3f max = lander->model.getSceneMax() * 0.5 + lander->getPosition();
+		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+		ofSetColor(ofColor::white);
+		if (bLanderSelected) {
+			ofSetColor(ofColor::red);
+		}
+		Octree::drawBox(bounds);
+	}
+	
 
 	ofSetColor(ofColor::lightBlue);
 	for (int i = 0; i < colBoxList.size(); i++) {
@@ -372,12 +415,56 @@ void ofApp::draw(){
 	ofSetColor(ofColor::white);
 	ofDrawBitmapString("Fuel left: " + std::to_string(fuel), ofGetWindowWidth() - 170, 30);
 
+	if (gamestate == PREGAME) {
+		string startText = "Press 'SPACEBAR' to start\n";
+		const string longestLine = "You can drag the ship around before starting the game\n";
+		startText += longestLine;
+		textDisplay.drawString(
+			startText,
+			ofGetWindowWidth() / 2 - textDisplay.stringWidth(longestLine) / 2,
+			ofGetWindowHeight() / 2
+		);
+	}
+	else if (gamestate == ENDGAME) {
+		bool shipExploded = true;
+		string endText;
+		if (shipExploded) {
+			endText += "Your ship exploded!\n";
+		}
+		else if (fuel <= 0) {
+			endText += "Your ship ran out of fuel!\n";
+		}
+		else {
+			endText += "You win!\n";
+		}
+		endText += "Your score is " + ofToString(score) + ".\nYour remaining fuel is " + ofToString(fuel) + ".\n";
+		endText += "Press P to play again.";
+		textDisplay.drawString(
+			endText,
+			ofGetWindowWidth() / 2 - textDisplay.stringWidth("MMMMMMMMMMMM") / 2,
+			ofGetWindowHeight() / 2
+		);
+	}
+
 	ofDisableDepthTest();
 }
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
 	keymap[key] = true;
+
+	if (gamestate == PREGAME && key == ' ') {
+		gamestate = INGAME;
+	}
+
+	if (gamestate != PREGAME && (key == 'p' || key == 'P')) {
+		gamestate = PREGAME;
+		// Reset lander and emitter positions, and variables
+		free(lander);
+		setupLander();
+		fuel = 120;
+		score = 0;
+	}
 
 	switch (key) {
 	case 'C':
@@ -393,9 +480,6 @@ void ofApp::keyPressed(int key){
 	case 'h':
 		// Toggle displaying AGL.
 		showAGL = !showAGL;
-		break;
-	case 'P':
-	case 'p':
 		break;
 	case 'r':
 		cam.reset();
@@ -467,17 +551,62 @@ void ofApp::mouseMoved(int x, int y ){
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
+	// If moving camera, do not allow mouse interactions
+	if (cam.getMouseInputEnabled()) {
+		return;
+	}
 
+	if (bInDrag) {
+		glm::vec3 landerPos = lander->getPosition();
+
+		glm::vec3 mousePos = getMousePointOnPlane(landerPos, cam.getZAxis());
+		glm::vec3 delta = mousePos - mouseLastPos;
+
+		landerPos += delta;
+		lander->setPosition(ofVec3f(landerPos.x, landerPos.y, landerPos.z));
+		mouseLastPos = mousePos;
+
+		ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
+		ofVec3f max = lander->model.getSceneMax() * 0.5 + lander->getPosition();
+		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+
+		colBoxList.clear();
+		octree.intersect(bounds, octree.root, colBoxList);
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
+	// If moving camera, do not allow mouse interactions
+	if (cam.getMouseInputEnabled()) {
+		return;
+	}
 
+	// Allow lander selection only in PREGAME state
+	if (gamestate == PREGAME) {
+		glm::vec3 origin = cam.getPosition();
+		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
+
+		ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
+		ofVec3f max = lander->model.getSceneMax() * 0.5 + lander->getPosition();
+		Box bounds = Box(Vector3(min.x, min.y, min.z), Vector3(max.x, max.y, max.z));
+
+		bLanderSelected = bounds.intersect(
+			Ray(Vector3(origin.x, origin.y, origin.z), Vector3(mouseDir.x, mouseDir.y, mouseDir.z)), 0, 1 << 20
+		);
+
+		if (bLanderSelected) {
+			mouseDownPos = getMousePointOnPlane(lander->getPosition(), cam.getZAxis());
+			mouseLastPos = mouseDownPos;
+			bInDrag = true;
+		}
+	}
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
-
+	bInDrag = false;
 }
 
 //--------------------------------------------------------------
