@@ -109,7 +109,7 @@ void ofApp::setup(){
 	ofEnableSmoothing();
 	ofEnableDepthTest();
 
-	bBackgroundLoaded = backgroundImage.load("images/starfield-plain.jpg");
+	bBackgroundLoaded = backgroundImage.load("images/background.jpg");
 
 	// Load custom font
 	textDisplay.load("fonts/LucidaConsole.ttf", 16);
@@ -118,11 +118,11 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load terrain
-	if (terrain.loadModel("geo/moon-houdini.obj")) {
+	if (terrain.loadModel("geo/terrain.fbx")) {
 		terrain.setScaleNormalization(false);
 	}
 	else {
-		cout << "Error: Can't load model: geo/moon-houdini.obj" << endl;
+		cout << "Error: Can't load model: geo/terrain.fbx" << endl;
 		ofExit(0);
 	}
 
