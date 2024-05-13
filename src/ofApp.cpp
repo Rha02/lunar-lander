@@ -27,14 +27,14 @@ void ofApp::setupLander() {
 	lander = new LunarLander();
 
 	// load lander model
-	if (lander->model.loadModel("geo/lander.obj")) {
+	if (lander->model.loadModel("geo/ufo_lander.fbx")) {
 		lander->model.setScaleNormalization(false);
 		lander->model.setScale(.5, .5, .5);
 		lander->model.setRotation(0, 0, 1, 0, 0);
 		lander->setPosition(ofVec3f(0, 15.0f, 0));
 	}
 	else {
-		cout << "Error: Can't load model" << "geo/lander.obj" << endl;
+		cout << "Error: Can't load model" << "geo/ufo_lander.fbx" << endl;
 		ofExit(0);
 	}
 }
