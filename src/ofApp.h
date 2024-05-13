@@ -7,6 +7,7 @@
 #include "Octree.h"
 #include "Util.h"
 #include <glm/gtx/intersect.hpp>
+#include "ofxGui.h"
 
 enum GameState {
 	PREGAME, INGAME, ENDGAME
@@ -49,7 +50,6 @@ public:
 	void drawAxis(ofVec3f);
 	void initLightingAndMaterials();
 	void savePicture();
-	void toggleWireframeMode();
 	void togglePointsDisplay();
 
 	glm::vec3 getMousePointOnPlane(glm::vec3 p, glm::vec3 n);
@@ -64,7 +64,6 @@ public:
 
 	bool bAltKeyDown;
 	bool bCtrlKeyDown;
-	bool bWireframe;
 	bool bDisplayPoints;
 
 	bool bBackgroundLoaded = false;
@@ -106,6 +105,24 @@ public:
 
 	int score = 0;
 
+	ofVec3f landingArea1 = ofVec3f(30, 0.5, -30); // Flat area
+	ofVec3f landingArea2 = ofVec3f(-132, 21.5, 36.3); // Mountain area
+	ofVec3f landingArea3 = ofVec3f(-25, 10, 90.7); // Inclined area
+
+	// Lighting
+	ofLight ambientLight;
+
+	ofLight landingArea1Light;
+	ofLight landingArea2Light;
+	ofLight landingArea3Light;
+
+	ofLight landerLight;
+
+	bool area1Landed = false;
+	bool area2Landed = false;
+	bool area3Landed = false;
+	bool shipExploded = false;
+
 	// Particle System Shades
 	ofTexture particleTexture;
 	ofVbo vbo;
@@ -113,4 +130,12 @@ public:
 	void loadVbo();
 
 	map<int, bool> keymap;
+
+	// GUI panel for development
+	ofxPanel gui;
+	ofxIntSlider att1;
+	ofxFloatSlider att2;
+	ofxFloatSlider att3;
+	ofxIntSlider spotlightCutoff;
+	//ofxFloatSlider lightPosition;
 };

@@ -87,7 +87,6 @@ void ofApp::loadVbo() {
 
 //--------------------------------------------------------------
 void ofApp::setup(){
-	bWireframe = false;
 	bDisplayPoints = false;
 	bAltKeyDown = false;
 	bCtrlKeyDown = false;
@@ -137,14 +136,12 @@ void ofApp::setup(){
 	//ofDisableArbTex();
 
 //#ifdef TARGET_OPENGLES
-//	cout << "pass 2" << endl;
 //	if (!shader.load("shaders_gles/shader")) {
 //		cout << "Error: Can't load shader file: shaders_gles/shader not found" << endl;
 //		ofExit(0);
 //	}
 //#else
-//	cout << "pass 3" << endl;
-//	if (!shader.load("shaders/shader.vert", "shaders/shader.frag")) {
+//	if (!shader.load("shaders/shader")) {
 //		cout << "Error: Can't load shader file: shaders/shader not found" << endl;
 //		ofExit(0);
 //	}
@@ -194,10 +191,82 @@ void ofApp::setup(){
 	explosionEmitter->groupSize = 800;
 	explosionEmitter->particleVelocity = ofVec3f(0, 0, 0);
 	explosionEmitter->oneShot = true;
+
+	/* Set up GUI */
+	/*gui.setup();
+	gui.add(att1.setup("Att1", 4, 0, 10));
+	gui.add(att2.setup("Att2", 0.01, 0, 0.2));
+	gui.add(att3.setup("Att3", 0.01, 0, 0.2));
+	gui.add(spotlightCutoff.setup("Cutoff", 90, 0, 150));*/
+
+	// Set up lighting
+	ambientLight.setup();
+	ambientLight.enable();
+	ambientLight.setAreaLight(0.05, 0.05);
+	ambientLight.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
+	ambientLight.setDiffuseColor(ofFloatColor(1, 1, 1));
+	ambientLight.setSpecularColor(ofFloatColor(1, 1, 1));
+
+	ambientLight.setPosition(ofVec3f(0, 100, 0));
+
+	landingArea1Light.setup();
+	landingArea1Light.enable();
+	landingArea1Light.setSpotlight();
+	landingArea1Light.setScale(.05);
+	landingArea1Light.setSpotlightCutOff(75);
+	landingArea1Light.setAttenuation(0.25, .01, .01);
+	landingArea1Light.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
+	landingArea1Light.setDiffuseColor(ofColor::lightBlue);
+	landingArea1Light.setSpecularColor(ofFloatColor(1, 1, 1));
+	landingArea1Light.rotate(-90, ofVec3f(1, 0, 0));
+	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, 10, 0));
+
+	landingArea2Light.setup();
+	landingArea2Light.enable();
+	landingArea2Light.setSpotlight();
+	landingArea2Light.setScale(.05);
+	landingArea2Light.setSpotlightCutOff(75);
+	landingArea2Light.setAttenuation(0.25, .01, .01);
+	landingArea2Light.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
+	landingArea2Light.setDiffuseColor(ofColor::lightBlue);
+	landingArea2Light.setSpecularColor(ofFloatColor(1, 1, 1));
+	landingArea2Light.rotate(-90, ofVec3f(1, 0, 0));
+	landingArea2Light.setPosition(landingArea2 + ofVec3f(0, 10, 0));
+
+	landingArea3Light.setup();
+	landingArea3Light.enable();
+	landingArea3Light.setSpotlight();
+	landingArea3Light.setScale(.05);
+	landingArea3Light.setSpotlightCutOff(75);
+	landingArea3Light.setAttenuation(0.25, .01, .01);
+	landingArea3Light.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
+	landingArea3Light.setDiffuseColor(ofColor::lightBlue);
+	landingArea3Light.setSpecularColor(ofFloatColor(1, 1, 1));
+	landingArea3Light.rotate(-90, ofVec3f(1, 0, 0));
+	landingArea3Light.setPosition(landingArea3 + ofVec3f(0, 10, 0));
+
+	landerLight.setup();
+	landerLight.enable();
+	landerLight.setSpotlight(45, 10);
+	landerLight.setAttenuation(1, .2, .02);
+	landerLight.setDiffuseColor(ofColor::orange);
+	landerLight.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
+	landerLight.setSpecularColor(ofFloatColor(1, 1, 1));
+	landerLight.rotate(-90, ofVec3f(1, 0, 0));
+	landerLight.setPosition(landingArea2 + ofVec3f(0, 10, 0));
 }
 
 //--------------------------------------------------------------
 void ofApp::update(){
+	if (score == 30) {
+		gamestate = ENDGAME;
+	}
+
+	// Update lights
+	/*landingArea1Light.setSpotlightCutOff(spotlightCutoff);
+	landingArea1Light.setAttenuation(att1, att2, att3);
+	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, lightPosition, 0));*/
+
 	// Apply rotational forces
 	tanForce->setTorque(ofVec3f(0, 0, 0));
 	if (keymap['a']) {
@@ -282,6 +351,8 @@ void ofApp::update(){
 	emitter->position = lander->getPosition();
 	emitter->update();
 
+	landerLight.setPosition(lander->getPosition());
+
 	explosionEmitter->update();
 
 	// Compute lander bounds
@@ -294,7 +365,7 @@ void ofApp::update(){
 	octree.intersect(bounds, octree.root, colBoxList);
 
 	// Handle lander collision with the terrain
-	if (gamestate == INGAME && colBoxList.size() >= 5) {
+	if (gamestate == INGAME && colBoxList.size() >= 10) {
 		// Apply impulse to the lander upon collision
 		ofVec3f yNormal = ofVec3f(0, 1, 0);
 		lander->velocity = (yNormal.dot(-lander->velocity) * yNormal) * 1.25;
@@ -302,18 +373,37 @@ void ofApp::update(){
 		// Check if lander is on the lander area
 
 		// Explode if lander is too fast
-		if (lander->velocity.length() >= 2.0f) {
-			cout << "explode" << endl;
+		if (lander->velocity.length() >= 2.5f) {
 			explosionForce->applied = false;
 			explosionEmitter->position = lander->getPosition();
 			explosionEmitter->start();
-
+			shipExploded = true;
 			gamestate = ENDGAME;
 		}
 
 		// Check if lander successfully landed
-		if (lander->velocity.length() < 1.0f) {
+		if (lander->velocity.length() < 1.5f) {
 			cout << "successful landing" << endl;
+
+			Vector3 la1 = Vector3(landingArea1.x, landingArea1.y, landingArea1.z);
+			Vector3 la2 = Vector3(landingArea2.x, landingArea2.y, landingArea2.z);
+			Vector3 la3 = Vector3(landingArea3.x, landingArea3.y, landingArea3.z);
+
+			if (!area1Landed && bounds.inside(la1)) {
+				area1Landed = true;
+				score += 10;
+				landingArea1Light.setDiffuseColor(ofColor::green);
+			}
+			else if (!area2Landed && bounds.inside(la2)) {
+				area2Landed = true;
+				score += 10;
+				landingArea2Light.setDiffuseColor(ofColor::green);
+			}
+			else if (!area3Landed && bounds.inside(la3)) {
+				area3Landed = true;
+				score += 10;
+				landingArea3Light.setDiffuseColor(ofColor::green);
+			}
 		}
 	}
 	
@@ -337,27 +427,20 @@ void ofApp::draw(){
 
 	//loadVbo();
 
+	// Enable lighting
+	ofEnableLighting();
+
 	theCam->begin();
 
 	ofPushMatrix();
 
-	// apply forces
+	landingArea1Light.draw();
+	landingArea2Light.draw();
+	landingArea3Light.draw();
 
-
-	if (bWireframe) {
-		// wireframe mode  (include axis)
-		ofDisableLighting();
-		ofSetColor(ofColor::slateGray);
-		terrain.drawWireframe();
-		
-		lander->model.drawWireframe();
-	}
-	else {
-		// shaded mode
-		ofEnableLighting();
-		terrain.drawFaces();
-		lander->model.drawFaces();
-	}
+	// Draw LEM and the terrain
+	terrain.drawFaces();
+	lander->model.drawFaces();
 
 	if (bDisplayPoints) {                
 		// display points as an option    
@@ -375,6 +458,9 @@ void ofApp::draw(){
 	// Draw Particle emitter
 	emitter->draw();
 	explosionEmitter->draw();
+
+	// Disable lighting
+	ofDisableLighting();
 
 	// Draw lander and collision boxes
 	ofNoFill();
@@ -414,6 +500,7 @@ void ofApp::draw(){
 
 	ofSetColor(ofColor::white);
 	ofDrawBitmapString("Fuel left: " + std::to_string(fuel), ofGetWindowWidth() - 170, 30);
+	ofDrawBitmapString("Score: " + std::to_string(score), ofGetWindowWidth() - 170, 45);
 
 	if (gamestate == PREGAME) {
 		string startText = "Press 'SPACEBAR' to start\n";
@@ -426,7 +513,6 @@ void ofApp::draw(){
 		);
 	}
 	else if (gamestate == ENDGAME) {
-		bool shipExploded = true;
 		string endText;
 		if (shipExploded) {
 			endText += "Your ship exploded!\n";
@@ -447,6 +533,8 @@ void ofApp::draw(){
 	}
 
 	ofDisableDepthTest();
+
+	//gui.draw();
 }
 
 //--------------------------------------------------------------
@@ -495,9 +583,6 @@ void ofApp::keyPressed(int key){
 		togglePointsDisplay();
 		break;
 	case 'V':
-		break;
-	case 'm':
-		toggleWireframeMode();
 		break;
 	case OF_KEY_F1:
 		theCam = &cam;
@@ -655,10 +740,6 @@ void ofApp::drawAxis(ofVec3f location) {
 	ofDrawLine(ofPoint(0, 0, 0), ofPoint(0, 0, 1));
 
 	ofPopMatrix();
-}
-
-void ofApp::toggleWireframeMode() {
-	bWireframe = !bWireframe;
 }
 
 void ofApp::togglePointsDisplay() {
