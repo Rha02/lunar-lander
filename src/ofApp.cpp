@@ -2,9 +2,9 @@
 
 /* Helpers */
 glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
-	glm::vec3 origin = cam.getPosition();
-	glm::vec3 camAxis = cam.getZAxis();
-	glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+	glm::vec3 origin = theCam->getPosition();
+	glm::vec3 camAxis = theCam->getZAxis();
+	glm::vec3 mouseWorld = theCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 	glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 	float distance;
 
@@ -67,7 +67,7 @@ float ofApp::computeAGL() {
 
 // Load vertex buffer in preparation for rendering
 void ofApp::loadVbo() {
-	if (emitter->sys->particles.size() < 1) {
+	if (emitter->sys->particles.size() < 1 && explosionEmitter->sys->particles.size() < 1) {
 		return;
 	}
 
@@ -76,6 +76,11 @@ void ofApp::loadVbo() {
 	for (int i = 0; i < emitter->sys->particles.size(); i++) {
 		points.push_back(emitter->sys->particles[i].position);
 		sizes.push_back(ofVec3f(emitter->particleRadius));
+	}
+
+	for (int i = 0; i < explosionEmitter->sys->particles.size(); i++) {
+		points.push_back(explosionEmitter->sys->particles[i].position);
+		sizes.push_back(ofVec3f(explosionEmitter->particleRadius));
 	}
 
 	// Upload data to the vbo
@@ -90,19 +95,6 @@ void ofApp::setup(){
 	bDisplayPoints = false;
 	bAltKeyDown = false;
 	bCtrlKeyDown = false;
-
-	// Set up cameras
-	cam.setDistance(10);
-	cam.setNearClip(.1);
-	cam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
-	cam.disableMouseInput();
-
-	topCam.setNearClip(.1);
-	topCam.setFov(65.5);
-	topCam.setPosition(0, 15, 0);
-	topCam.lookAt(glm::vec3(0, 0, 0));
-
-	theCam = &cam;
 
 	ofSetVerticalSync(true);
 	ofEnableSmoothing();
@@ -127,19 +119,19 @@ void ofApp::setup(){
 
 	// Particle shaders & texture
 
-	// Load particle textures and shaders
-	//if (!ofLoadImage(particleTexture, "images/dot.png")) {
-	//	cout << "Error: Can't load texture file: images/dot.png not found" << endl;
-	//	ofExit(0);
-	//}
+	ofDisableArbTex();
 
-	//ofDisableArbTex();
+	// Load particle textures and shaders
+	if (!ofLoadImage(particleTexture, "images/dot.png")) {
+		cout << "Error: Can't load texture file: images/dot.png not found" << endl;
+		ofExit(0);
+	}
 
 //#ifdef TARGET_OPENGLES
-//	if (!shader.load("shaders_gles/shader")) {
-//		cout << "Error: Can't load shader file: shaders_gles/shader not found" << endl;
-//		ofExit(0);
-//	}
+	if (!shader.load("shaders_gles/shader")) {
+		cout << "Error: Can't load shader file: shaders_gles/shader not found" << endl;
+		ofExit(0);
+	}
 //#else
 //	if (!shader.load("shaders/shader")) {
 //		cout << "Error: Can't load shader file: shaders/shader not found" << endl;
@@ -151,6 +143,23 @@ void ofApp::setup(){
 	octree.create(terrain.getMesh(0), 20);
 
 	setupLander();
+
+	/* Set up GUI */
+	gui.setup();
+	/*gui.add(att1.setup("Att1", 4, 0, 10));
+	gui.add(att2.setup("Att2", 0.01, 0, 0.2));
+	gui.add(att3.setup("Att3", 0.01, 0, 0.2));
+	gui.add(spotlightCutoff.setup("Cutoff", 90, 0, 150));*/
+
+	/*gui.add(thrustVal.setup("Thrust", 70, 50, 200));
+	gui.add(torqueVal.setup("Torque", 6000, 2000, 10000));
+	gui.add(particleThrustVal.setup("P Thrust", 35.0, 5.0, 50.0));
+	gui.add(explosionVal.setup("Explosion", 600, 500, 1200));
+	gui.add(particleRadiusVal.setup("P Radius", 2.0, 1.0, 20.0));
+	gui.add(particleLifespanVal.setup("P Lifespan", 0.5, 0.2, 3));
+	gui.add(thrustRate.setup("Thrust Rate", 40, 5, 80));
+	gui.add(thrustGroupSize.setup("Explosion Density", 800, 500, 1500));
+	gui.add(thrustSpeed.setup("P Speed", 0.9, 0.05, 2.0));*/
 
 	// Set up forces
 	thrustForce = new ThrustForce(ofVec3f(0, 0, 0));
@@ -170,10 +179,10 @@ void ofApp::setup(){
 	emitter->sys->addForce(turbForce);
 	emitter->sys->addForce(gravityForce);
 	emitter->radius = 0.2f;
-	emitter->rate = 25.0f;
-	emitter->particleRadius = 0.02f;
+	emitter->rate = 45.0f;
+	emitter->particleRadius = 3.0f;
 	emitter->lifespan = 0.5f;
-	emitter->groupSize = 30;
+	emitter->groupSize = 50;
 	emitter->particleVelocity = ofVec3f(0, -0.8f, 0);
 
 	// Set up explosion particle system
@@ -186,18 +195,11 @@ void ofApp::setup(){
 	explosionEmitter->sys->addForce(explosionForce);
 
 	explosionEmitter->type = RadialEmitter;
-	explosionEmitter->particleRadius = 0.02f;
+	explosionEmitter->particleRadius = 9.0f;
 	explosionEmitter->lifespan = 4.0f;
-	explosionEmitter->groupSize = 800;
+	explosionEmitter->groupSize = 1300;
 	explosionEmitter->particleVelocity = ofVec3f(0, 0, 0);
 	explosionEmitter->oneShot = true;
-
-	/* Set up GUI */
-	/*gui.setup();
-	gui.add(att1.setup("Att1", 4, 0, 10));
-	gui.add(att2.setup("Att2", 0.01, 0, 0.2));
-	gui.add(att3.setup("Att3", 0.01, 0, 0.2));
-	gui.add(spotlightCutoff.setup("Cutoff", 90, 0, 150));*/
 
 	// Set up lighting
 	ambientLight.setup();
@@ -254,6 +256,34 @@ void ofApp::setup(){
 	landerLight.setSpecularColor(ofFloatColor(1, 1, 1));
 	landerLight.rotate(-90, ofVec3f(1, 0, 0));
 	landerLight.setPosition(landingArea2 + ofVec3f(0, 10, 0));
+
+	// Set up cameras
+	freeCam.setTarget(lander->getPosition());
+	freeCam.setDistance(10);
+	freeCam.setNearClip(.1);
+	freeCam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
+	freeCam.disableMouseInput();
+
+	topCam.setNearClip(.1);
+	topCam.setFov(65.5);
+	topCam.setPosition(0, 15, 0);
+	topCam.lookAt(glm::vec3(0, 0, 0));
+
+	trackingCam.setPosition(ofVec3f(20, 24, -15));
+	trackingCam.setTarget(lander->getPosition());
+	trackingCam.setDistance(10);
+	trackingCam.setNearClip(0.1);
+	trackingCam.setFov(65.5);
+	trackingCam.disableMouseInput();
+
+	onboardCam.setPosition(lander->getPosition());
+	onboardCam.setTarget(lander->getPosition() + lander->getForwardUV());
+	onboardCam.setDistance(10);
+	onboardCam.setNearClip(0.1);
+	onboardCam.setFov(65.5);
+	onboardCam.disableMouseInput();
+
+	theCam = &freeCam;
 }
 
 //--------------------------------------------------------------
@@ -266,6 +296,17 @@ void ofApp::update(){
 	/*landingArea1Light.setSpotlightCutOff(spotlightCutoff);
 	landingArea1Light.setAttenuation(att1, att2, att3);
 	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, lightPosition, 0));*/
+
+	//thrustMagnitude = thrustVal;
+	//torqueMagnitude = torqueVal;
+	//particleForce->setThrust(ofVec3f(0, -particleThrustVal, 0));
+	//explosionForce->setMagnitude(explosionVal);
+	////emitter->particleRadius = particleRadiusVal;
+	//explosionEmitter->particleRadius = particleRadiusVal;
+	//emitter->lifespan = particleLifespanVal;
+	//emitter->rate = thrustRate;
+	//explosionEmitter->groupSize = thrustGroupSize;
+	//emitter->particleVelocity = ofVec3f(0, -thrustSpeed, 0);
 
 	// Apply rotational forces
 	tanForce->setTorque(ofVec3f(0, 0, 0));
@@ -327,7 +368,7 @@ void ofApp::update(){
 		tanForce->update(lander);
 
 		if (fuel <= 0) {
-			gamestate == ENDGAME;
+			gamestate = ENDGAME;
 		}
 		else {
 			// Reduce fuel if thrusters are being used
@@ -353,6 +394,11 @@ void ofApp::update(){
 
 	landerLight.setPosition(lander->getPosition());
 
+	// Update cameras
+	trackingCam.lookAt(lander->getPosition());
+	onboardCam.setPosition(lander->getPosition());
+	onboardCam.setTarget(lander->getPosition() + lander->getForwardUV());
+
 	explosionEmitter->update();
 
 	// Compute lander bounds
@@ -365,44 +411,44 @@ void ofApp::update(){
 	octree.intersect(bounds, octree.root, colBoxList);
 
 	// Handle lander collision with the terrain
-	if (gamestate == INGAME && colBoxList.size() >= 10) {
+	if (gamestate != PREGAME && colBoxList.size() >= 10) {
 		// Apply impulse to the lander upon collision
 		ofVec3f yNormal = ofVec3f(0, 1, 0);
 		lander->velocity = (yNormal.dot(-lander->velocity) * yNormal) * 1.25;
 
 		// Check if lander is on the lander area
-
-		// Explode if lander is too fast
-		if (lander->velocity.length() >= 2.5f) {
-			explosionForce->applied = false;
-			explosionEmitter->position = lander->getPosition();
-			explosionEmitter->start();
-			shipExploded = true;
-			gamestate = ENDGAME;
-		}
-
-		// Check if lander successfully landed
-		if (lander->velocity.length() < 1.5f) {
-			cout << "successful landing" << endl;
-
-			Vector3 la1 = Vector3(landingArea1.x, landingArea1.y, landingArea1.z);
-			Vector3 la2 = Vector3(landingArea2.x, landingArea2.y, landingArea2.z);
-			Vector3 la3 = Vector3(landingArea3.x, landingArea3.y, landingArea3.z);
-
-			if (!area1Landed && bounds.inside(la1)) {
-				area1Landed = true;
-				score += 10;
-				landingArea1Light.setDiffuseColor(ofColor::green);
+		if (gamestate == INGAME) {
+			// Explode if lander is too fast
+			if (lander->velocity.length() >= 2.5f) {
+				explosionForce->applied = false;
+				explosionEmitter->position = lander->getPosition();
+				explosionEmitter->start();
+				shipExploded = true;
+				gamestate = ENDGAME;
 			}
-			else if (!area2Landed && bounds.inside(la2)) {
-				area2Landed = true;
-				score += 10;
-				landingArea2Light.setDiffuseColor(ofColor::green);
-			}
-			else if (!area3Landed && bounds.inside(la3)) {
-				area3Landed = true;
-				score += 10;
-				landingArea3Light.setDiffuseColor(ofColor::green);
+
+			// Check if lander successfully landed
+			if (lander->velocity.length() < 1.5f) {
+				cout << lander->getPosition() << endl;
+				Vector3 la1 = Vector3(landingArea1.x, landingArea1.y, landingArea1.z);
+				Vector3 la2 = Vector3(landingArea2.x, landingArea2.y, landingArea2.z);
+				Vector3 la3 = Vector3(landingArea3.x, landingArea3.y, landingArea3.z);
+
+				if (!area1Landed && bounds.inside(la1)) {
+					area1Landed = true;
+					score += 10;
+					landingArea1Light.setDiffuseColor(ofColor::green);
+				}
+				else if (!area2Landed && bounds.inside(la2)) {
+					area2Landed = true;
+					score += 10;
+					landingArea2Light.setDiffuseColor(ofColor::green);
+				}
+				else if (!area3Landed && bounds.inside(la3)) {
+					area3Landed = true;
+					score += 10;
+					landingArea3Light.setDiffuseColor(ofColor::green);
+				}
 			}
 		}
 	}
@@ -425,7 +471,7 @@ void ofApp::draw(){
 		ofPopMatrix();
 	}
 
-	//loadVbo();
+	loadVbo();
 
 	// Enable lighting
 	ofEnableLighting();
@@ -434,9 +480,9 @@ void ofApp::draw(){
 
 	ofPushMatrix();
 
-	landingArea1Light.draw();
+	/*landingArea1Light.draw();
 	landingArea2Light.draw();
-	landingArea3Light.draw();
+	landingArea3Light.draw();*/
 
 	// Draw LEM and the terrain
 	terrain.drawFaces();
@@ -448,19 +494,34 @@ void ofApp::draw(){
 		ofSetColor(ofColor::green);
 	}
 
-	// draw shaders
-	
-
-	/*particleTexture.bind();
-	vbo.draw(GL_POINTS, 0, (int)emitter->sys->particles.size());
-	particleTexture.unbind();*/
-
-	// Draw Particle emitter
-	emitter->draw();
-	explosionEmitter->draw();
-
 	// Disable lighting
 	ofDisableLighting();
+
+	// draw shaders
+	glDepthMask(GL_FALSE);
+
+	ofSetColor(255, 100, 90);
+
+	ofEnableBlendMode(OF_BLENDMODE_ADD);
+	ofEnablePointSprites();
+
+	shader.begin();
+
+	particleTexture.bind();
+	vbo.draw(GL_POINTS, 0, (int)(emitter->sys->particles.size() + explosionEmitter->sys->particles.size()));
+	particleTexture.unbind();
+
+	shader.end();
+
+	ofDisablePointSprites();
+	ofDisableBlendMode();
+	//ofEnableAlphaBlending();
+
+	glDepthMask(GL_TRUE);
+
+	// Draw Particle emitter
+	//emitter->draw();
+	//explosionEmitter->draw();
 
 	// Draw lander and collision boxes
 	ofNoFill();
@@ -474,12 +535,11 @@ void ofApp::draw(){
 			ofSetColor(ofColor::red);
 		}
 		Octree::drawBox(bounds);
-	}
-	
 
-	ofSetColor(ofColor::lightBlue);
-	for (int i = 0; i < colBoxList.size(); i++) {
-		Octree::drawBox(colBoxList[i]);
+		ofSetColor(ofColor::lightBlue);
+		for (int i = 0; i < colBoxList.size(); i++) {
+			Octree::drawBox(colBoxList[i]);
+		}
 	}
 	
 
@@ -523,7 +583,10 @@ void ofApp::draw(){
 		else {
 			endText += "You win!\n";
 		}
-		endText += "Your score is " + ofToString(score) + ".\nYour remaining fuel is " + ofToString(fuel) + ".\n";
+		endText += "Your score is " + ofToString(score) + ".\n";
+		if (fuel >= 0) {
+			endText += "Your remaining fuel is " + ofToString(fuel) + ".\n";
+		}
 		endText += "Press P to play again.";
 		textDisplay.drawString(
 			endText,
@@ -557,8 +620,8 @@ void ofApp::keyPressed(int key){
 	switch (key) {
 	case 'C':
 	case 'c':
-		if (cam.getMouseInputEnabled()) cam.disableMouseInput();
-		else cam.enableMouseInput();
+		if (freeCam.getMouseInputEnabled()) freeCam.disableMouseInput();
+		else freeCam.enableMouseInput();
 		break;
 	case 'F':
 	case 'f':
@@ -570,7 +633,12 @@ void ofApp::keyPressed(int key){
 		showAGL = !showAGL;
 		break;
 	case 'r':
-		cam.reset();
+		freeCam.reset();
+		freeCam.setTarget(lander->getPosition());
+		freeCam.setDistance(10);
+		freeCam.setNearClip(.1);
+		freeCam.setFov(65.5);   // approx equivalent to 28mm in 35mm format
+		freeCam.disableMouseInput();
 		break;
 	case 'g':
 		savePicture();
@@ -585,13 +653,18 @@ void ofApp::keyPressed(int key){
 	case 'V':
 		break;
 	case OF_KEY_F1:
-		theCam = &cam;
+		theCam = &freeCam;
+		break;
+	case OF_KEY_F2:
+		theCam = &trackingCam;
+		freeCam.enableMouseInput();
 		break;
 	case OF_KEY_F3:
-		theCam = &topCam;
+		theCam = &onboardCam;
+		freeCam.enableMouseInput();
 		break;
 	case OF_KEY_ALT:
-		cam.enableMouseInput();
+		freeCam.enableMouseInput();
 		bAltKeyDown = true;
 		break;
 	case OF_KEY_CONTROL:
@@ -616,7 +689,7 @@ void ofApp::keyReleased(int key){
 
 	switch (key) {
 	case OF_KEY_ALT:
-		cam.disableMouseInput();
+		freeCam.disableMouseInput();
 		bAltKeyDown = false;
 		break;
 	case OF_KEY_CONTROL:
@@ -637,14 +710,14 @@ void ofApp::mouseMoved(int x, int y ){
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
 	// If moving camera, do not allow mouse interactions
-	if (cam.getMouseInputEnabled()) {
+	if (freeCam.getMouseInputEnabled()) {
 		return;
 	}
 
 	if (bInDrag) {
 		glm::vec3 landerPos = lander->getPosition();
 
-		glm::vec3 mousePos = getMousePointOnPlane(landerPos, cam.getZAxis());
+		glm::vec3 mousePos = getMousePointOnPlane(landerPos, theCam->getZAxis());
 		glm::vec3 delta = mousePos - mouseLastPos;
 
 		landerPos += delta;
@@ -663,14 +736,14 @@ void ofApp::mouseDragged(int x, int y, int button){
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
 	// If moving camera, do not allow mouse interactions
-	if (cam.getMouseInputEnabled()) {
+	if (freeCam.getMouseInputEnabled() || theCam != &freeCam) {
 		return;
 	}
 
 	// Allow lander selection only in PREGAME state
 	if (gamestate == PREGAME) {
-		glm::vec3 origin = cam.getPosition();
-		glm::vec3 mouseWorld = cam.screenToWorld(glm::vec3(mouseX, mouseY, 0));
+		glm::vec3 origin = theCam->getPosition();
+		glm::vec3 mouseWorld = theCam->screenToWorld(glm::vec3(mouseX, mouseY, 0));
 		glm::vec3 mouseDir = glm::normalize(mouseWorld - origin);
 
 		ofVec3f min = lander->model.getSceneMin() * 0.5 + lander->getPosition();
@@ -682,7 +755,7 @@ void ofApp::mousePressed(int x, int y, int button){
 		);
 
 		if (bLanderSelected) {
-			mouseDownPos = getMousePointOnPlane(lander->getPosition(), cam.getZAxis());
+			mouseDownPos = getMousePointOnPlane(lander->getPosition(), theCam->getZAxis());
 			mouseLastPos = mouseDownPos;
 			bInDrag = true;
 		}

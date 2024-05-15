@@ -53,14 +53,19 @@ public:
 	void togglePointsDisplay();
 
 	glm::vec3 getMousePointOnPlane(glm::vec3 p, glm::vec3 n);
-		
-	ofEasyCam cam;
+
 	LunarLander* lander;
 	ofxAssimpModelLoader terrain;
 	ofLight light;
 	ofImage backgroundImage;
+
+	// Set up cameras
 	ofCamera* theCam = NULL;
 	ofCamera topCam;
+	ofEasyCam freeCam;
+	ofEasyCam trackingCam;
+	ofEasyCam onboardCam;
+
 
 	bool bAltKeyDown;
 	bool bCtrlKeyDown;
@@ -73,11 +78,11 @@ public:
 
 	// Thrust force
 	ThrustForce* thrustForce;
-	float thrustMagnitude = 150.0f;
+	float thrustMagnitude = 90.0f;
 
 	// Tangential force
 	TangentialForce* tanForce;
-	float torqueMagnitude = 8000.0f;
+	float torqueMagnitude = 6000.0f;
 
 	// Turbulence force
 	TurbulenceForce* turbForce;
@@ -88,10 +93,10 @@ public:
 
 	// Particle forces
 	ThrustForce* particleForce;
-	float particleThrust = 20.0f;
+	float particleThrust = 35.0f;
 
 	ImpulseRadialForce* explosionForce;
-	float explosionMagnitude = 600.0f;
+	float explosionMagnitude = 1400.0f;
 
 	// Particles
 	ParticleEmitter* emitter;
@@ -133,9 +138,17 @@ public:
 
 	// GUI panel for development
 	ofxPanel gui;
-	ofxIntSlider att1;
+	/*ofxIntSlider att1;
 	ofxFloatSlider att2;
 	ofxFloatSlider att3;
-	ofxIntSlider spotlightCutoff;
-	//ofxFloatSlider lightPosition;
+	ofxIntSlider spotlightCutoff;*/
+	ofxIntSlider thrustVal;
+	ofxIntSlider torqueVal;
+	ofxIntSlider particleThrustVal;
+	ofxIntSlider explosionVal;
+	ofxFloatSlider particleRadiusVal;
+	ofxFloatSlider particleLifespanVal;
+	ofxIntSlider thrustRate;
+	ofxIntSlider thrustGroupSize;
+	ofxFloatSlider thrustSpeed;
 };
