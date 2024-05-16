@@ -301,22 +301,6 @@ void ofApp::update(){
 		gamestate = ENDGAME;
 	}
 
-	// Update lights
-	/*landingArea3Light.setSpotlightCutOff(spotlightCutoff);
-	landingArea3Light.setAttenuation(att1, att2, att3);
-	landingArea3Light.setPosition(landingArea3 + ofVec3f(0, lightPosition, 0));*/
-
-	//thrustMagnitude = thrustVal;
-	//torqueMagnitude = torqueVal;
-	//particleForce->setThrust(ofVec3f(0, -particleThrustVal, 0));
-	//explosionForce->setMagnitude(explosionVal);
-	////emitter->particleRadius = particleRadiusVal;
-	//explosionEmitter->particleRadius = particleRadiusVal;
-	//emitter->lifespan = particleLifespanVal;
-	//emitter->rate = thrustRate;
-	//explosionEmitter->groupSize = thrustGroupSize;
-	//emitter->particleVelocity = ofVec3f(0, -thrustSpeed, 0);
-
 	// Apply rotational forces
 	tanForce->setTorque(ofVec3f(0, 0, 0));
 	if (keymap['a']) {
@@ -488,10 +472,6 @@ void ofApp::draw(){
 
 	ofPushMatrix();
 
-	landingArea1Light.draw();
-	landingArea2Light.draw();
-	landingArea3Light.draw();
-
 	// Draw LEM and the terrain
 	terrain.drawFaces();
 	lander->model.drawFaces();
@@ -505,7 +485,7 @@ void ofApp::draw(){
 	// Disable lighting
 	ofDisableLighting();
 
-	// draw shaders
+	// draw shaded particles
 	glDepthMask(GL_FALSE);
 
 	ofSetColor(255, 100, 90);
@@ -526,10 +506,6 @@ void ofApp::draw(){
 	//ofEnableAlphaBlending();
 
 	glDepthMask(GL_TRUE);
-
-	// Draw Particle emitter
-	//emitter->draw();
-	//explosionEmitter->draw();
 
 	// Draw lander and collision boxes
 	ofNoFill();

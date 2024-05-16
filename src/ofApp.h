@@ -1,5 +1,11 @@
 #pragma once
 
+/*
+ * Final Project - Lunar Lander Simulation
+ * For CS 134 taught by Kevin Smith
+ * Authors: Romuz Abdulhamidov and Bryant Bautista
+ */
+
 #include "ofMain.h"
 #include "Force.h"
 #include "LunarLander.h"
@@ -9,10 +15,12 @@
 #include <glm/gtx/intersect.hpp>
 #include "ofxGui.h"
 
+// State of the game
 enum GameState {
 	PREGAME, INGAME, ENDGAME
 };
 
+// Decide which models to load
 enum GameEnv {
 	MOON, DESERT
 };
@@ -34,7 +42,7 @@ private:
 
 	void setupLander();
 
-	GameEnv gameEnv = DESERT;
+	GameEnv gameEnv = MOON; // Change game environment
 public:
 	void setup();
 	void update();
