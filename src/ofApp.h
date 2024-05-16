@@ -13,6 +13,10 @@ enum GameState {
 	PREGAME, INGAME, ENDGAME
 };
 
+enum GameEnv {
+	MOON, DESERT
+};
+
 class ofApp : public ofBaseApp{
 private:
 	float computeAGL();
@@ -29,6 +33,8 @@ private:
 	vector<Box> colBoxList;
 
 	void setupLander();
+
+	GameEnv gameEnv = DESERT;
 public:
 	void setup();
 	void update();
@@ -135,20 +141,4 @@ public:
 	void loadVbo();
 
 	map<int, bool> keymap;
-
-	// GUI panel for development
-	ofxPanel gui;
-	/*ofxIntSlider att1;
-	ofxFloatSlider att2;
-	ofxFloatSlider att3;
-	ofxIntSlider spotlightCutoff;*/
-	ofxIntSlider thrustVal;
-	ofxIntSlider torqueVal;
-	ofxIntSlider particleThrustVal;
-	ofxIntSlider explosionVal;
-	ofxFloatSlider particleRadiusVal;
-	ofxFloatSlider particleLifespanVal;
-	ofxIntSlider thrustRate;
-	ofxIntSlider thrustGroupSize;
-	ofxFloatSlider thrustSpeed;
 };

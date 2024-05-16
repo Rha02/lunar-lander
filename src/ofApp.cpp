@@ -26,15 +26,21 @@ glm::vec3 ofApp::getMousePointOnPlane(glm::vec3 planePt, glm::vec3 planeNorm) {
 void ofApp::setupLander() {
 	lander = new LunarLander();
 
+	string modelPath = "geo/lander.obj";
+
+	if (gameEnv == DESERT) {
+		modelPath = "geo/ufo_lander.fbx";
+	}
+
 	// load lander model
-	if (lander->model.loadModel("geo/lander.obj")) {
+	if (lander->model.loadModel(modelPath)) {
 		lander->model.setScaleNormalization(false);
 		lander->model.setScale(.5, .5, .5);
 		lander->model.setRotation(0, 0, 1, 0, 0);
 		lander->setPosition(ofVec3f(0, 15.0f, 0));
 	}
 	else {
-		cout << "Error: Can't load model" << "geo/lander.obj" << endl;
+		cout << "Error: Can't load model " << modelPath << endl;
 		ofExit(0);
 	}
 }
@@ -109,11 +115,20 @@ void ofApp::setup(){
 	initLightingAndMaterials();
 
 	// Load terrain
-	if (terrain.loadModel("geo/moon-houdini.obj")) {
+	string terrainPath = "geo/moon-houdini.obj";
+	if (gameEnv == DESERT) {
+		terrainPath = "geo/terrain.fbx";
+
+		// Change landing areas for the Desert terrain
+		landingArea1 = ofVec3f(42.5, -0.9, 15.5);
+		landingArea2 = ofVec3f(28.2, 6.0, 81.7);
+		landingArea3 = ofVec3f(-106.7, 34.5, 29.7);
+	}
+	if (terrain.loadModel(terrainPath)) {
 		terrain.setScaleNormalization(false);
 	}
 	else {
-		cout << "Error: Can't load model: geo/moon-houdini.obj" << endl;
+		cout << "Error: Can't load model " << terrainPath << endl;
 		ofExit(0);
 	}
 
@@ -127,39 +142,22 @@ void ofApp::setup(){
 		ofExit(0);
 	}
 
-//#ifdef TARGET_OPENGLES
+#ifdef TARGET_OPENGLES
 	if (!shader.load("shaders_gles/shader")) {
 		cout << "Error: Can't load shader file: shaders_gles/shader not found" << endl;
 		ofExit(0);
 	}
-//#else
-//	if (!shader.load("shaders/shader")) {
-//		cout << "Error: Can't load shader file: shaders/shader not found" << endl;
-//		ofExit(0);
-//	}
-//#endif
+#else
+	if (!shader.load("shaders/shader")) {
+		cout << "Error: Can't load shader file: shaders/shader not found" << endl;
+		ofExit(0);
+	}
+#endif
 
 	// Create Octree
 	octree.create(terrain.getMesh(0), 20);
 
 	setupLander();
-
-	/* Set up GUI */
-	gui.setup();
-	/*gui.add(att1.setup("Att1", 4, 0, 10));
-	gui.add(att2.setup("Att2", 0.01, 0, 0.2));
-	gui.add(att3.setup("Att3", 0.01, 0, 0.2));
-	gui.add(spotlightCutoff.setup("Cutoff", 90, 0, 150));*/
-
-	/*gui.add(thrustVal.setup("Thrust", 70, 50, 200));
-	gui.add(torqueVal.setup("Torque", 6000, 2000, 10000));
-	gui.add(particleThrustVal.setup("P Thrust", 35.0, 5.0, 50.0));
-	gui.add(explosionVal.setup("Explosion", 600, 500, 1200));
-	gui.add(particleRadiusVal.setup("P Radius", 2.0, 1.0, 20.0));
-	gui.add(particleLifespanVal.setup("P Lifespan", 0.5, 0.2, 3));
-	gui.add(thrustRate.setup("Thrust Rate", 40, 5, 80));
-	gui.add(thrustGroupSize.setup("Explosion Density", 800, 500, 1500));
-	gui.add(thrustSpeed.setup("P Speed", 0.9, 0.05, 2.0));*/
 
 	// Set up forces
 	thrustForce = new ThrustForce(ofVec3f(0, 0, 0));
@@ -211,6 +209,8 @@ void ofApp::setup(){
 
 	ambientLight.setPosition(ofVec3f(0, 100, 0));
 
+	float lightDistance = 10;
+
 	landingArea1Light.setup();
 	landingArea1Light.enable();
 	landingArea1Light.setSpotlight();
@@ -221,7 +221,10 @@ void ofApp::setup(){
 	landingArea1Light.setDiffuseColor(ofColor::lightBlue);
 	landingArea1Light.setSpecularColor(ofFloatColor(1, 1, 1));
 	landingArea1Light.rotate(-90, ofVec3f(1, 0, 0));
-	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, 10, 0));
+	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, lightDistance, 0));
+	if (gameEnv == DESERT) {
+		landingArea1Light.setPosition(landingArea1 + ofVec3f(0, 5.0, 0));
+	}
 
 	landingArea2Light.setup();
 	landingArea2Light.enable();
@@ -233,7 +236,10 @@ void ofApp::setup(){
 	landingArea2Light.setDiffuseColor(ofColor::lightBlue);
 	landingArea2Light.setSpecularColor(ofFloatColor(1, 1, 1));
 	landingArea2Light.rotate(-90, ofVec3f(1, 0, 0));
-	landingArea2Light.setPosition(landingArea2 + ofVec3f(0, 10, 0));
+	landingArea2Light.setPosition(landingArea2 + ofVec3f(0, lightDistance, 0));
+	if (gameEnv == DESERT) {
+		landingArea2Light.setPosition(landingArea2 + ofVec3f(0, 4.0, 0));
+	}
 
 	landingArea3Light.setup();
 	landingArea3Light.enable();
@@ -245,7 +251,10 @@ void ofApp::setup(){
 	landingArea3Light.setDiffuseColor(ofColor::lightBlue);
 	landingArea3Light.setSpecularColor(ofFloatColor(1, 1, 1));
 	landingArea3Light.rotate(-90, ofVec3f(1, 0, 0));
-	landingArea3Light.setPosition(landingArea3 + ofVec3f(0, 10, 0));
+	landingArea3Light.setPosition(landingArea3 + ofVec3f(0, lightDistance, 0));
+	if (gameEnv == DESERT) {
+		landingArea3Light.setPosition(landingArea3 + ofVec3f(0, 0.3, 0));
+	}
 
 	landerLight.setup();
 	landerLight.enable();
@@ -255,7 +264,7 @@ void ofApp::setup(){
 	landerLight.setAmbientColor(ofFloatColor(0.1, 0.1, 0.1));
 	landerLight.setSpecularColor(ofFloatColor(1, 1, 1));
 	landerLight.rotate(-90, ofVec3f(1, 0, 0));
-	landerLight.setPosition(landingArea2 + ofVec3f(0, 10, 0));
+	landerLight.setPosition(lander->getPosition());
 
 	// Set up cameras
 	freeCam.setTarget(lander->getPosition());
@@ -293,9 +302,9 @@ void ofApp::update(){
 	}
 
 	// Update lights
-	/*landingArea1Light.setSpotlightCutOff(spotlightCutoff);
-	landingArea1Light.setAttenuation(att1, att2, att3);
-	landingArea1Light.setPosition(landingArea1 + ofVec3f(0, lightPosition, 0));*/
+	/*landingArea3Light.setSpotlightCutOff(spotlightCutoff);
+	landingArea3Light.setAttenuation(att1, att2, att3);
+	landingArea3Light.setPosition(landingArea3 + ofVec3f(0, lightPosition, 0));*/
 
 	//thrustMagnitude = thrustVal;
 	//torqueMagnitude = torqueVal;
@@ -429,7 +438,6 @@ void ofApp::update(){
 
 			// Check if lander successfully landed
 			if (lander->velocity.length() < 1.5f) {
-				cout << lander->getPosition() << endl;
 				Vector3 la1 = Vector3(landingArea1.x, landingArea1.y, landingArea1.z);
 				Vector3 la2 = Vector3(landingArea2.x, landingArea2.y, landingArea2.z);
 				Vector3 la3 = Vector3(landingArea3.x, landingArea3.y, landingArea3.z);
@@ -480,9 +488,9 @@ void ofApp::draw(){
 
 	ofPushMatrix();
 
-	/*landingArea1Light.draw();
+	landingArea1Light.draw();
 	landingArea2Light.draw();
-	landingArea3Light.draw();*/
+	landingArea3Light.draw();
 
 	// Draw LEM and the terrain
 	terrain.drawFaces();
@@ -596,8 +604,6 @@ void ofApp::draw(){
 	}
 
 	ofDisableDepthTest();
-
-	//gui.draw();
 }
 
 //--------------------------------------------------------------
