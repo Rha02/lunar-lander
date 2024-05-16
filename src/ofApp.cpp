@@ -98,6 +98,8 @@ void ofApp::loadVbo() {
 
 //--------------------------------------------------------------
 void ofApp::setup(){
+	ofSetFrameRate(60);
+
 	bDisplayPoints = false;
 	bAltKeyDown = false;
 	bCtrlKeyDown = false;
@@ -166,6 +168,12 @@ void ofApp::setup(){
 		ofExit(0);
 	}
 	thrustSound.setVolume(0.75);
+
+	if (!dingSound.load("sounds/ding.mp3")) {
+		cout << "Error: Can't load sound file: sounds/ding.mp3" << endl;
+		ofExit(0);
+	}
+	dingSound.setVolume(0.4);
 	
 	// Create Octree
 	octree.create(terrain.getMesh(0), 20);
@@ -451,16 +459,19 @@ void ofApp::update(){
 				if (!area1Landed && bounds.inside(la1)) {
 					area1Landed = true;
 					score += 10;
+					dingSound.play();
 					landingArea1Light.setDiffuseColor(ofColor::green);
 				}
 				else if (!area2Landed && bounds.inside(la2)) {
 					area2Landed = true;
 					score += 10;
+					dingSound.play();
 					landingArea2Light.setDiffuseColor(ofColor::green);
 				}
 				else if (!area3Landed && bounds.inside(la3)) {
 					area3Landed = true;
 					score += 10;
+					dingSound.play();
 					landingArea3Light.setDiffuseColor(ofColor::green);
 				}
 			}

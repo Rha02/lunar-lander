@@ -153,4 +153,5 @@ public:
 	// Sounds
 	ofSoundPlayer explosionSound;
 	ofSoundPlayer thrustSound;
+	ofSoundPlayer dingSound;
 };
