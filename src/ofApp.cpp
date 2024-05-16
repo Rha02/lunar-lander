@@ -154,6 +154,19 @@ void ofApp::setup(){
 	}
 #endif
 
+	// Load sounds
+	if (!explosionSound.load("sounds/explosion.mp3")) {
+		cout << "Error: Can't load sound file: sounds/explosion.mp3" << endl;
+		ofExit(0);
+	}
+	explosionSound.setSpeed(0.8);
+
+	if (!thrustSound.load("sounds/thrust.mp3")) {
+		cout << "Error: Can't load sound file: sounds/thrust.mp3" << endl;
+		ofExit(0);
+	}
+	thrustSound.setVolume(0.75);
+	
 	// Create Octree
 	octree.create(terrain.getMesh(0), 20);
 
@@ -370,6 +383,14 @@ void ofApp::update(){
 			if (thrustMagnitude != 0 || tanMagnitude != 0) {
 				float dt = 1.0f / ofGetFrameRate();
 				fuel -= dt;
+
+				// Play thrust sound
+				if (!thrustSound.isPlaying()) {
+					thrustSound.play();
+				}
+			}
+			else {
+				thrustSound.stop();
 			}
 		}
 	}
@@ -417,6 +438,7 @@ void ofApp::update(){
 				explosionEmitter->position = lander->getPosition();
 				explosionEmitter->start();
 				shipExploded = true;
+				explosionSound.play();
 				gamestate = ENDGAME;
 			}
 

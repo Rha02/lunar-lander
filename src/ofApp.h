@@ -149,4 +149,8 @@ public:
 	void loadVbo();
 
 	map<int, bool> keymap;
+
+	// Sounds
+	ofSoundPlayer explosionSound;
+	ofSoundPlayer thrustSound;
 };
