@@ -42,7 +42,7 @@ private:
 
 	void setupLander();
 
-	GameEnv gameEnv = MOON; // Change game environment
+	GameEnv gameEnv = DESERT; // Change game environment (options: MOON, DESERT)
 public:
 	void setup();
 	void update();
